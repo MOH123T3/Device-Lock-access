@@ -1,0 +1,57 @@
+Skip to content
+Search or jump to…
+Pull requests
+Issues
+Codespaces
+Marketplace
+Explore
+ 
+@MOH123T3 
+MOH123T3
+/
+Device-Lock-access
+Public
+Cannot fork because you own this repository and are not a member of any organizations.
+Code
+Issues
+Pull requests
+Actions
+Projects
+Wiki
+Security
+Insights
+Settings
+Device-Lock-access
+/
+Name your file…
+in
+main
+ 
+  
+  enum _SupportState {
+  unknown,
+  supported,
+  unsupported,
+}
+
+  
+  
+  
+    final LocalAuthentication auth = LocalAuthentication();
+  _SupportState _supportState = _SupportState.unknown;
+  
+  
+  
+  
+  auth.isDeviceSupported().then(
+          (bool isSupported) => _supportState =
+              isSupported ? _SupportState.supported : _SupportState.unsupported,
+        );
+    if (_supportState == _SupportState.supported) {
+      Utils.isLock = "lock";
+    } else {
+      Utils.isLock = "Unlock";
+    }
+@MOH123T3
+
+
