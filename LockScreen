@@ -1,32 +1,324 @@
+// ignore_for_file: prefer_const_constructors, depend_on_referenced_packages, unused_field, unrelated_type_equality_checks, avoid_print, implementation_imports
 
+import 'dart:io';
+import 'dart:ui';
+import 'package:app_settings/app_settings.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:local_auth/src/local_auth.dart';
 
-main
- 
-  
-  enum _SupportState {
-  unknown,
-  supported,
-  unsupported,
+void main() {
+  runApp(MaterialApp(
+    home: MyApp(),
+  ));
 }
 
-  
-  
-  
-    final LocalAuthentication auth = LocalAuthentication();
-  _SupportState _supportState = _SupportState.unknown;
-  
-  
-  
-  
-  auth.isDeviceSupported().then(
-          (bool isSupported) => _supportState =
-              isSupported ? _SupportState.supported : _SupportState.unsupported,
-        );
-    if (_supportState == _SupportState.supported) {
-      Utils.isLock = "lock";
+class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  final LocalAuthentication auth = LocalAuthentication();
+  bool _supportState = false;
+  bool isShow = false;
+  bool count = false;
+  String isLock = "";
+  static bool isLockDialogVisible = false;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
+    try {
+      //Platform.isAndroid
+
+      if (state == AppLifecycleState.resumed) {
+        if (Platform.isAndroid) {
+          auth.isDeviceSupported().then((bool isSupported) => setState(() {
+                _supportState = isSupported;
+              }));
+
+          if (_supportState == true) {
+          } else {
+            setState(() {
+              if (isShow == false) {
+                Future.delayed(Duration.zero, () {
+                  isScreenLock(navigatorKey.currentContext!);
+                });
+              }
+            });
+          }
+        } //  Platform.isIOS
+        else if (Platform.isIOS) {
+          setState(() async {
+            final List<BiometricType> availableBiometrics =
+                await auth.getAvailableBiometrics();
+            if (availableBiometrics.contains(BiometricType.face)) {
+            } else {
+              if (isShow == false) {
+                Future.delayed(Duration.zero, () {
+                  isScreenLock(navigatorKey.currentContext!);
+                });
+              }
+            }
+          });
+        }
+      }
+    } catch (e) {}
+  }
+
+  getIosLock() async {
+    setState(() async {
+      final List<BiometricType> availableBiometrics =
+          await auth.getAvailableBiometrics();
+      if (availableBiometrics.contains(BiometricType.face)) {
+        isLockDialogVisible = false;
+        if (isShow == true) {
+          Navigator.of(navigatorKey.currentContext!).pop();
+          isShow = false;
+        }
+      } else {
+        isLockDialogVisible = true;
+      }
+    });
+  }
+
+  getAndroidLock() async {
+    auth.isDeviceSupported().then((bool isSupported) {
+      if (count == false) {
+        setState(() {
+          count = true;
+          _supportState = isSupported;
+        });
+      } else if (count == true) {
+        _supportState = isSupported;
+      }
+    });
+    if (_supportState == true) {
+      setState(() {
+        isLockDialogVisible = false;
+        if (isShow == true) {
+          Navigator.of(navigatorKey.currentContext!).pop();
+          isShow = false;
+        }
+      });
     } else {
-      Utils.isLock = "Unlock";
+      isLockDialogVisible = true;
     }
-@MOH123T3
+  }
 
+  @override
+  Widget build(BuildContext context) {
+    // for lock screen dialog
 
+    try {
+      if (Platform.isAndroid) {
+        getAndroidLock();
+      } else if (Platform.isIOS) {
+        getIosLock();
+      }
+    } catch (e) {}
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.purple,
+        centerTitle: true,
+        title: Text("Device $isLock"),
+        actions: [
+          IconButton(
+              onPressed: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (BuildContext context) => HomePage(
+                              isShow: isShow,
+                              isLockDialogVisible: isLockDialogVisible,
+                            )));
+              },
+              icon: Icon(Icons.home))
+        ],
+      ),
+      body: Center(
+        child: Platform.isAndroid
+            ? Text(
+                "Android Device $isLock",
+                style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.bold,
+                    color: isLock == "Lock" ? Colors.red : Colors.green),
+              )
+            : Text(
+                "IOS Device $isLock",
+                style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green),
+              ),
+      ),
+    );
+  }
+
+  static isScreenLock(BuildContext context) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return WillPopScope(
+            onWillPop: () async => false,
+            child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                child: AlertDialog(
+                  // ignore: unnecessary_new
+                  title: Text(
+                      "It requires to set your device with screen lock for security."),
+
+                  actions: [
+                    Center(
+                        child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          ' Do you want to set it?',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 18,
+                          ),
+                        ),
+                        SizedBox(
+                          height: 20,
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(),
+                              onPressed: () async {
+                                AppSettings.openLockAndPasswordSettings();
+
+                                if (isLockDialogVisible == true) {
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                              child: Text("Set up Screen Lock"),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(),
+                              onPressed: () {
+                                SystemNavigator.pop();
+                              },
+                              child: Text("Cancel"),
+                            )
+                          ],
+                        )
+                      ],
+                    ))
+                  ],
+                )));
+      },
+    );
+  }
+}
+
+class HomePage extends StatefulWidget {
+  var isLockDialogVisible;
+  var isShow;
+  HomePage({super.key, this.isLockDialogVisible, this.isShow});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  @override
+  Widget build(BuildContext context) {
+    setState(() {
+      if (widget.isLockDialogVisible == true) {
+        if (widget.isShow == false) {
+          widget.isShow = true;
+          Future.delayed(Duration.zero, () {
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return WillPopScope(
+                    onWillPop: () async => false,
+                    child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                        child: AlertDialog(
+                          // ignore: unnecessary_new
+                          title: Text(
+                              "It requires to set your device with screen lock for security."),
+
+                          actions: [
+                            Center(
+                                child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  ' Do you want to set it?',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                SizedBox(
+                                  height: 20,
+                                ),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceAround,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(),
+                                      onPressed: () async {
+                                        AppSettings
+                                            .openLockAndPasswordSettings();
+
+                                        if (widget.isLockDialogVisible ==
+                                            true) {
+                                          Navigator.of(context).pop();
+                                        }
+                                      },
+                                      child: Text("Set up Screen Lock"),
+                                    ),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(),
+                                      onPressed: () {
+                                        SystemNavigator.pop();
+                                      },
+                                      child: Text("Cancel"),
+                                    )
+                                  ],
+                                )
+                              ],
+                            ))
+                          ],
+                        )));
+              },
+            );
+          });
+        }
+        widget.isLockDialogVisible = false;
+      }
+    });
+    return Container();
+  }
+}
